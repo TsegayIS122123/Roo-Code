@@ -40,3 +40,26 @@ export async function validateIntentScope(intentId: string, filePath: string): P
 		(scope) => filePath.startsWith(scope) || new RegExp(scope.replace("*", ".*")).test(filePath),
 	)
 }
+// Add this function to your existing intentLoader.ts
+export async function getIntentContext(intentId: string): Promise<string> {
+	const intent = await getIntentById(intentId)
+	if (!intent) {
+		return ""
+	}
+
+	return `
+<intent_context>
+    <id>${intent.id}</id>
+    <name>${intent.name}</name>
+    <status>${intent.status}</status>
+    <constraints>
+        ${intent.constraints.map((c) => `    <constraint>${c}</constraint>`).join("\n")}
+    </constraints>
+    <owned_scope>
+        ${intent.owned_scope.map((s) => `    <scope>${s}</scope>`).join("\n")}
+    </owned_scope>
+    <acceptance_criteria>
+        ${intent.acceptance_criteria.map((a) => `    <criteria>${a}</criteria>`).join("\n")}
+    </acceptance_criteria>
+</intent_context>`
+}
