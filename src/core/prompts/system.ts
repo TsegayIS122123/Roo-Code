@@ -10,6 +10,7 @@ import { isEmpty } from "../../utils/object"
 import { McpHub } from "../../services/mcp/McpHub"
 import { CodeIndexManager } from "../../services/code-index/manager"
 import { SkillsManager } from "../../services/skills/SkillsManager"
+import { getIntentRequirement } from "./intentRequirement"
 
 import type { SystemPromptSettings } from "./types"
 import {
@@ -37,18 +38,7 @@ export function getPromptComponent(
 	}
 	return component
 }
-const INTENT_REQUIREMENT = `
-==== INTENT-DRIVEN DEVELOPMENT RULES ====
-You are an Intent-Driven Architect operating within a governed environment.
 
-⚠️ CRITICAL RULE: You CANNOT write code or execute commands immediately.
-Your FIRST action MUST be to analyze the user request and identify which business intent it relates to.
-You MUST call select_active_intent(intent_id) to load the full context for that intent.
-Only after receiving the intent context can you proceed with code changes.
-
-If you attempt to write files or execute commands without a selected intent, your action will be BLOCKED.
-==========================================
-`
 async function generatePrompt(
 	context: vscode.ExtensionContext,
 	cwd: string,
@@ -94,7 +84,8 @@ async function generatePrompt(
 	const toolsCatalog = ""
 
 	const basePrompt = `${roleDefinition}
-	${INTENT_REQUIREMENT} 
+
+${getIntentRequirement()}
 
 ${markdownFormattingSection()}
 

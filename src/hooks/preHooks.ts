@@ -1,4 +1,4 @@
-// File: src/hooks/preHooks.ts
+// src/hooks/preHooks.ts
 import { HookContext, PreHook } from "./index"
 
 export const intentGatekeeper: PreHook = async (context: HookContext) => {
@@ -27,7 +27,7 @@ export const commandClassifier: PreHook = async (context: HookContext) => {
 
 	const DESTRUCTIVE_PATTERNS = [/rm -rf/, /git push --force/, /drop table/i, /format/, /delete/, /chmod 777/]
 
-	const command = context.args.command
+	const command = context.args.command || ""
 	const isDestructive = DESTRUCTIVE_PATTERNS.some((pattern) => pattern.test(command))
 
 	if (isDestructive) {
@@ -39,5 +39,15 @@ export const commandClassifier: PreHook = async (context: HookContext) => {
 		}
 	}
 
+	return context
+}
+
+export const scopeEnforcer: PreHook = async (context: HookContext) => {
+	if (context.toolName !== "write_to_file" || !context.session.intentId) {
+		return context
+	}
+
+	// This will be implemented with intentLoader
+	// For now, just pass through
 	return context
 }

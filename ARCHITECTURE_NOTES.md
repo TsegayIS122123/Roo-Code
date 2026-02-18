@@ -233,52 +233,10 @@ Tool calls are streamed from the LLM and finalized before execution.
 Interception logic must operate on fully parsed tool calls.
 Visual Sequence – Intent-Aware Reasoning Loop
 
-The following diagram represents the chronological execution pipeline and highlights where intent governance will intercept the reasoning loop.
-This diagram illustrates the transformation from passive tool execution to a two-stage handshake architecture:
+The s the chronological execution pipeline and highlights where intent governance will intercept the reasoning loop.
+This illustrates the transformation from passive tool execution to a two-stage handshake architecture:
 
 ## 🔁 Tool Invocation Flow – Intent-Aware Reasoning Loop
-
-````mermaid
-sequenceDiagram
-    participant User
-    participant Webview
-    participant Provider as ClineProvider
-    participant Prompt as SYSTEM_PROMPT()
-    participant LLM
-    participant IntentTool as select_active_intent
-    participant IntentLoader
-    participant PreHook
-    participant Tool as ExecuteCommand / WriteToFile
-    participant PostHook
-
-    User->>Webview: Submit Instruction
-    Webview->>Provider: Forward Input
-
-    Provider->>Prompt: Build System Prompt
-    Prompt-->>Provider: Full Context
-
-    Provider->>LLM: Send Prompt
-    LLM-->>Provider: Tool Call (select_active_intent)
-
-    Provider->>IntentTool: Execute Intent Tool
-    IntentTool->>IntentLoader: Load active_intents.yaml
-    IntentLoader-->>IntentTool: Intent Config
-
-    IntentTool-->>Provider: Intent Activated
-
-    LLM-->>Provider: Tool Call (execute_command / write_to_file)
-
-    Provider->>PreHook: Validate Intent Scope
-    PreHook-->>Provider: Approved / Blocked
-
-    Provider->>Tool: Execute
-    Tool-->>Provider: Result
-
-    Provider->>PostHook: Record Trace
-    PostHook-->>Provider: Log Stored
-
-    Provider->>Webview: Return Response
-
 
 This diagram illustrates the transformation from passive tool execution to a two-stage handshake architecture:
 
@@ -289,58 +247,6 @@ Governed Tool Execution
 The PreHook becomes the deterministic enforcement boundary.
 
 ## 🏗 Hook Engine & Intent Orchestration Architecture
-
-```mermaid
-flowchart TD
-
-    subgraph UI_Layer
-        UI[Webview Panel]
-    end
-
-    subgraph Provider_Layer
-        CP[ClineProvider]
-        Task[Task Orchestrator]
-    end
-
-    subgraph Prompt_Layer
-        SP[SYSTEM_PROMPT]
-        GP[generatePrompt]
-    end
-
-    subgraph Governance_Layer
-        HE[Hook Engine]
-        PH[PreHooks]
-        PO[PostHooks]
-        IT[select_active_intent Tool]
-        IL[Intent Loader]
-        YAML[active_intents.yaml]
-    end
-
-    subgraph Execution_Layer
-        CMD[ExecuteCommandTool]
-        WRITE[WriteToFileTool]
-    end
-
-    subgraph System_Boundary
-        OS[Operating System]
-        FS[Filesystem]
-    end
-
-    UI --> CP
-    CP --> Task
-    Task --> GP
-    GP --> SP
-    SP --> HE
-    HE --> PH
-    PH --> CMD
-    PH --> WRITE
-    CMD --> OS
-    WRITE --> FS
-    CMD --> PO
-    WRITE --> PO
-    IT --> IL
-    IL --> YAML
-
 
 The Governance Layer introduces a deterministic interception model between reasoning and execution.
 This prevents uncontrolled LLM actions at the OS and filesystem boundaries.
@@ -448,15 +354,51 @@ Boundary-aware execution
 
 The system shifts from suggestion-driven AI to policy-governed orchestration.
 
-# Governance Enforcement Order
+## 8. Complete End-to-End Handshake Flow
 
-flowchart LR
-Intent[Intent Validation]
-Param[Parameter Validation]
-RooIgnore[.rooignore Rules]
-Approval[User Approval]
-Execute[Tool Execution]
-Trace[Post Execution Trace]
+┌─────────────────────────────────────────────────────────────────┐
+│ COMPLETE HAND SHAKE FLOW │
+│ (Visible and Enforced) │
+├─────────────────────────────────────────────────────────────────┤
+│ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 1: System Prompt Injection │ │
+│ │ File: src/core/prompts/intentRequirement.ts │ │
+│ │ Content: "MANDATORY: You MUST call select_active_intent"│ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 2: Tool Registration │ │
+│ │ File: src/core/tools/toolRegistration.ts │ │
+│ │ Action: select_active_intent added to ALL_TOOLS │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 3: Hook Engine Initialization │ │
+│ │ File: src/core/Cline.ts - initializeHooks() │ │
+│ │ Action: Register pre/post hooks for all tools │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 4: Pre-Hook Execution │ │
+│ │ File: src/core/Cline.ts - executeToolWithApproval() │ │
+│ │ Action: intentGatekeeper runs BEFORE any tool │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 5: Post-Hook Execution │ │
+│ │ File: src/core/Cline.ts - after tool execution │ │
+│ │ Action: traceRecorder records to agent_trace.jsonl │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │
+│ RESULT: Every tool call is GUARANTEED to have intent validation │
+└─────────────────────────────────────────────────────────────────┘
+
+# Governance Enforcement Order
 
     Intent --> Param --> RooIgnore --> Approval --> Execute --> Trace
 
@@ -504,4 +446,7 @@ File mutation control
 AI policy injection
 
 The system's modular tool execution layer enables safe interception and enforcement without disrupting core functionality.
-````
+
+```
+
+```

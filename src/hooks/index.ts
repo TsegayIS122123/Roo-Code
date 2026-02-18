@@ -1,4 +1,4 @@
-// File: src/hooks/index.ts
+// src/hooks/index.ts
 
 export interface HookContext {
 	toolName: string
@@ -49,6 +49,10 @@ export class HookRegistry {
 		this.globalPreHooks.push(hook)
 	}
 
+	registerGlobalPost(hook: PostHook) {
+		this.globalPostHooks.push(hook)
+	}
+
 	async executePreHooks(toolName: string, context: HookContext): Promise<HookContext> {
 		// Run global pre-hooks
 		for (const hook of this.globalPreHooks) {
@@ -77,5 +81,9 @@ export class HookRegistry {
 	}
 }
 
-// Create singleton instance
+// Create and export singleton instance
 export const hookRegistry = new HookRegistry()
+
+// Export all hooks
+export * from "./preHooks"
+export * from "./postHooks"
