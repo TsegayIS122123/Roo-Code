@@ -1,0 +1,10 @@
+active_intents:
+  - id: "INT-001"
+    name: "Build Weather API"
+    status: "IN_PROGRESS"
+    owned_scope:
+      - "src/api/weather/"
+    constraints:
+      - "Must use OpenWeather API"
+    acceptance_criteria:
+      - "Unit tests pass"
