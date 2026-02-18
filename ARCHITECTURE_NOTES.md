@@ -234,17 +234,22 @@ Interception logic must operate on fully parsed tool calls.
 Visual Sequence – Intent-Aware Reasoning Loop
 
 The following diagram represents the chronological execution pipeline and highlights where intent governance will intercept the reasoning loop.
+This diagram illustrates the transformation from passive tool execution to a two-stage handshake architecture:
+
+## 🔁 Tool Invocation Flow – Intent-Aware Reasoning Loop
+
+````mermaid
 sequenceDiagram
-participant User
-participant Webview
-participant Provider as ClineProvider
-participant Prompt as SYSTEM_PROMPT()
-participant LLM
-participant IntentTool as select_active_intent
-participant IntentLoader
-participant PreHook
-participant Tool as ExecuteCommand / WriteToFile
-participant PostHook
+    participant User
+    participant Webview
+    participant Provider as ClineProvider
+    participant Prompt as SYSTEM_PROMPT()
+    participant LLM
+    participant IntentTool as select_active_intent
+    participant IntentLoader
+    participant PreHook
+    participant Tool as ExecuteCommand / WriteToFile
+    participant PostHook
 
     User->>Webview: Submit Instruction
     Webview->>Provider: Forward Input
@@ -274,6 +279,7 @@ participant PostHook
 
     Provider->>Webview: Return Response
 
+
 This diagram illustrates the transformation from passive tool execution to a two-stage handshake architecture:
 
 Intent Selection
@@ -282,25 +288,26 @@ Governed Tool Execution
 
 The PreHook becomes the deterministic enforcement boundary.
 
-# 🏗 Hook Engine & Intent Orchestration Architecture
+## 🏗 Hook Engine & Intent Orchestration Architecture
 
+```mermaid
 flowchart TD
 
-    subgraph UI Layer
+    subgraph UI_Layer
         UI[Webview Panel]
     end
 
-    subgraph Provider Layer
+    subgraph Provider_Layer
         CP[ClineProvider]
         Task[Task Orchestrator]
     end
 
-    subgraph Prompt Layer
+    subgraph Prompt_Layer
         SP[SYSTEM_PROMPT]
         GP[generatePrompt]
     end
 
-    subgraph Governance Layer
+    subgraph Governance_Layer
         HE[Hook Engine]
         PH[PreHooks]
         PO[PostHooks]
@@ -309,12 +316,12 @@ flowchart TD
         YAML[active_intents.yaml]
     end
 
-    subgraph Execution Layer
+    subgraph Execution_Layer
         CMD[ExecuteCommandTool]
         WRITE[WriteToFileTool]
     end
 
-    subgraph System Boundary
+    subgraph System_Boundary
         OS[Operating System]
         FS[Filesystem]
     end
@@ -333,6 +340,7 @@ flowchart TD
     WRITE --> PO
     IT --> IL
     IL --> YAML
+
 
 The Governance Layer introduces a deterministic interception model between reasoning and execution.
 This prevents uncontrolled LLM actions at the OS and filesystem boundaries.
@@ -496,3 +504,4 @@ File mutation control
 AI policy injection
 
 The system's modular tool execution layer enables safe interception and enforcement without disrupting core functionality.
+````
