@@ -1,76 +1,83 @@
 // src/hooks/integration.ts
 /**
- * HOOK INTEGRATION POINT
- * This file shows how hooks are integrated into the agent loop
- * The actual integration will happen in the main execution file
+ * HOOK INTEGRATION POINT - Phase 2 Complete
  */
 
 import { hookRegistry } from "./index"
-import { intentGatekeeper, commandClassifier, scopeEnforcer } from "./preHooks"
-import { traceRecorder, lessonRecorder } from "./postHooks"
+import { intentGatekeeper, commandClassifier, scopeEnforcer, staleFileDetector } from "./preHooks"
+import { traceRecorder, lessonRecorder, recoveryLogger } from "./postHooks"
+import { IntentIgnoreManager } from "./utils/intentIgnore"
 
 /**
- * Initialize all hooks
- * Call this when the extension starts
+ * Initialize all hooks for Phase 2
  */
-export function initializeHooks() {
-	console.log("🔌 Initializing Hook Engine...")
+export async function initializeHooks() {
+	console.log("🔌 Initializing Hook Engine - Phase 2...")
 
-	// Register pre-hooks
-	hookRegistry.registerPreTool("execute_command", intentGatekeeper)
+	// Load .intentignore rules
+	const ignoreManager = await IntentIgnoreManager.getInstance()
+	console.log(`📋 Loaded ${ignoreManager.getRules().length} .intentignore rules`)
+
+	// ===== PRE-HOOKS (Validation Layer) =====
+
+	// Security Layer - Always runs first
 	hookRegistry.registerPreTool("execute_command", commandClassifier)
+	hookRegistry.registerPreTool("execute_command", intentGatekeeper)
+
+	// File Operations Layer
 	hookRegistry.registerPreTool("write_to_file", intentGatekeeper)
 	hookRegistry.registerPreTool("write_to_file", scopeEnforcer)
+	hookRegistry.registerPreTool("write_to_file", staleFileDetector)
+
+	// Apply to other tools
 	hookRegistry.registerPreTool("apply_diff", intentGatekeeper)
+	hookRegistry.registerPreTool("apply_diff", staleFileDetector)
 	hookRegistry.registerPreTool("search_and_replace", intentGatekeeper)
 
-	// Register post-hooks
+	// ===== POST-HOOKS (Recording Layer) =====
+
+	// Trace Recording
 	hookRegistry.registerPostTool("write_to_file", traceRecorder)
 	hookRegistry.registerPostTool("apply_diff", traceRecorder)
-	hookRegistry.registerGlobalPost(lessonRecorder)
 
-	console.log("✅ Hook Engine initialized with intent enforcement")
-	console.log(`   Registered pre-hooks for: execute_command, write_to_file`)
-	console.log(`   Intent gatekeeper active - all tools require intent selection`)
+	// Learning & Recovery
+	hookRegistry.registerGlobalPost(lessonRecorder)
+	hookRegistry.registerGlobalPost(recoveryLogger)
+
+	console.log("✅ Phase 2 Hook Engine initialized:")
+	console.log("   • Command Classification: Active")
+	console.log("   • UI-Blocking Modals: Active")
+	console.log("   • .intentignore Support: Active")
+	console.log("   • Scope Enforcement: Active")
+	console.log("   • Autonomous Recovery: Active")
 }
 
 /**
- * Example of how to use hooks in tool execution
- * This pattern should be implemented in the main execution loop
+ * Example .intentignore file content
  */
-export async function executeToolWithHooks(
-	toolName: string,
-	args: any,
-	session: { intentId?: string; fileSnapshots?: Map<string, string> },
-) {
-	// Create hook context
-	const context = {
-		toolName,
-		args,
-		session: {
-			intentId: session.intentId,
-			fileSnapshots: session.fileSnapshots || new Map(),
-			conversationId: `conv-${Date.now()}`,
-		},
-		blocked: false,
-	}
+export const INTENTIGNORE_EXAMPLE = `# .intentignore - Intent-based exclusion rules
+# Format: [intent_id:]pattern [type] [# comment]
 
-	// Execute pre-hooks
-	const finalContext = await hookRegistry.executePreHooks(toolName, context)
+# Global exclusions (apply to all intents)
+node_modules/**        # Dependencies - never modify
+.git/**                # Git internals - never modify
+dist/**                # Build output - exclude
+*.log                  # Log files - exclude
 
-	// If blocked, return error
-	if (finalContext.blocked) {
-		return {
-			status: "error",
-			error: finalContext.error,
-		}
-	}
+# Intent-specific rules
+INT-001:src/core/** allow_destructive  # Core team can run destructive commands
+INT-002:src/api/** require_approval    # API changes require extra approval
+INT-003:*.md          exclude           # Documentation - read-only
+`
 
-	// Tool would execute here
-	const result = { success: true }
-
-	// Execute post-hooks
-	await hookRegistry.executePostHooks(toolName, finalContext, result)
-
-	return result
-}
+/**
+ * Autonomous Recovery Flow
+ */
+export const recoveryFlowExample = `
+When an error occurs:
+1. Hook blocks execution
+2. AutonomousRecovery creates standardized error
+3. Error sent to LLM with suggestions
+4. LLM self-corrects and retries
+5. Recovery logged to CLAUDE.md
+`

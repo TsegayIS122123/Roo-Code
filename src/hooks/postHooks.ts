@@ -3,6 +3,7 @@ import { HookContext, PostHook, ToolResult } from "./index"
 import * as fs from "fs/promises"
 import * as path from "path"
 import { createHash } from "crypto"
+import { AutonomousRecovery } from "./recovery/errorHandler"
 
 export function hashContent(content: string): string {
 	return createHash("sha256")
@@ -78,5 +79,34 @@ export const lessonRecorder: PostHook = async (context: HookContext, result: Too
 		await fs.appendFile(claudePath, lesson)
 	} catch (error) {
 		console.error("Lesson recording failed:", error)
+	}
+}
+
+// Fixed recovery logger - using public method
+export const recoveryLogger: PostHook = async (context: HookContext, result: ToolResult) => {
+	if (result?.success !== false) {
+		return
+	}
+
+	try {
+		const errorType = result?.error?.type || "Unknown"
+		const suggestions = AutonomousRecovery.getSuggestedActions(errorType)
+
+		const lesson = `
+## Recovery Learning (${new Date().toISOString()})
+- **Error Type**: ${errorType}
+- **Tool**: ${context.toolName}
+- **Intent**: ${context.session.intentId || "none"}
+- **Recovery Strategy**: ${suggestions[0] || "No suggestion available"}
+- **User Feedback**: ${context.userFeedback || "none"}
+
+This error was handled by the autonomous recovery system.
+`
+
+		const claudePath = path.join(process.cwd(), ".orchestration", "CLAUDE.md")
+		await fs.mkdir(path.dirname(claudePath), { recursive: true })
+		await fs.appendFile(claudePath, lesson)
+	} catch (error) {
+		console.error("Recovery logging failed:", error)
 	}
 }

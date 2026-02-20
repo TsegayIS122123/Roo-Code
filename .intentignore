@@ -1,0 +1,90 @@
+# .intentignore - Intent-based exclusion rules
+# Format: [intent_id:]pattern [type] [# comment]
+
+# ============================================
+# GLOBAL EXCLUSIONS (apply to all intents)
+# ============================================
+
+# Dependencies - never modify directly
+node_modules/**        exclude   # npm/pnpm modules
+.pnpm-store/**         exclude   # pnpm store
+yarn.lock              exclude   # yarn lock file
+package-lock.json      exclude   # npm lock file
+
+# Version control - never modify
+.git/**                exclude   # Git internals
+.gitignore             exclude   # Git ignore file
+
+# Build outputs - generated code
+dist/**                exclude   # Build output
+out/**                 exclude   # Output directory
+build/**               exclude   # Build artifacts
+*.min.js               exclude   # Minified files
+*.bundle.js            exclude   # Bundled files
+
+# Logs and temp files
+*.log                  exclude   # Log files
+*.tmp                  exclude   # Temp files
+*.temp                 exclude   # Temp files
+.DS_Store              exclude   # macOS metadata
+Thumbs.db              exclude   # Windows metadata
+
+# IDE and editor files
+.vscode/**             exclude   # VS Code settings
+.idea/**               exclude   # WebStorm/IntelliJ
+*.swp                  exclude   # Vim swap
+*.swo                  exclude   # Vim swap
+
+# ============================================
+# INTENT-SPECIFIC RULES
+# ============================================
+
+# INT-001: Core Infrastructure Team
+INT-001:scripts/** allow_destructive     # Deployment scripts need destructive commands
+INT-001:package.json allow_destructive   # Can modify dependencies
+INT-001:pnpm-lock.yaml allow_destructive # Can update lock file
+
+# INT-002: API Development Team  
+INT-002:src/api/** require_approval      # API changes need extra review
+INT-002:src/routes/** require_approval   # Route changes need approval
+INT-002:openapi.yaml require_approval    # API spec changes need review
+
+# INT-003: Documentation Team
+INT-003:docs/** allow_destructive        # Docs team can do anything in docs
+INT-003:README.md allow_destructive      # Can modify main readme
+INT-003:*.md         exclude             # But not other markdown files
+
+# INT-004: Security Team
+INT-004:src/auth/** allow_destructive    # Auth changes allowed
+INT-004:src/security/** allow_destructive # Security updates
+INT-004:.env*        exclude             # Never modify env files
+
+# INT-005: Frontend Team
+INT-005:src/components/** require_approval # Component changes need review
+INT-005:src/styles/** allow_destructive    # Style changes allowed
+INT-005:*.css         allow_destructive    # CSS files
+INT-005:*.scss        allow_destructive    # SCSS files
+
+# ============================================
+# LEGACY INTENTS (archived)
+# ============================================
+
+INT-999:src/legacy/** exclude            # Legacy code - read only
+INT-998:migrations/** exclude            # DB migrations - never modify
+
+# ============================================
+# SPECIAL PATTERNS
+# ============================================
+
+# Allow destructive in specific directories only
+src/scripts/deploy/** allow_destructive
+src/scripts/build/** allow_destructive
+
+# Require approval for sensitive files
+*secret* require_approval
+*password* require_approval
+*credential* require_approval
+
+# Exclude test snapshots
+**/__snapshots__/** exclude
+*.snap exclude
