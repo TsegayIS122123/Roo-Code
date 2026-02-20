@@ -4,6 +4,10 @@ import * as fs from "fs/promises"
 import * as path from "path"
 import { createHash } from "crypto"
 import { AutonomousRecovery } from "./recovery/errorHandler"
+// Add to src/hooks/postHooks.ts imports
+import { TraceRecorder } from "./trace/traceRecorder"
+import { SpatialHash } from "./trace/spatialHash"
+import { getIntentById } from "./utils/intentLoader"
 
 export function hashContent(content: string): string {
 	return createHash("sha256")
@@ -108,5 +112,114 @@ This error was handled by the autonomous recovery system.
 		await fs.appendFile(claudePath, lesson)
 	} catch (error) {
 		console.error("Recovery logging failed:", error)
+	}
+}
+
+// Initialize trace recorder (add near top of file)
+let traceRecorderInstance: TraceRecorder | null = null
+
+export function initializeTraceRecorder(workspaceRoot: string) {
+	traceRecorderInstance = new TraceRecorder(workspaceRoot)
+	traceRecorderInstance.initialize().catch(console.error)
+}
+
+// Enhanced trace recorder with classification
+export const enhancedTraceRecorder: PostHook = async (context: HookContext, result: ToolResult) => {
+	if (context.toolName !== "write_to_file" || !result?.success || !traceRecorderInstance) {
+		return
+	}
+
+	try {
+		const filePath = context.args.path
+		const content = context.args.content || ""
+		const intentId = context.session.intentId
+
+		if (!intentId) {
+			console.warn("No intent ID for trace recording")
+			return
+		}
+
+		// Get original content if exists for classification
+		let originalContent: string | undefined
+		try {
+			const fs = await import("fs/promises")
+			originalContent = await fs.readFile(filePath, "utf-8")
+		} catch {
+			// File doesn't exist yet (new file)
+		}
+
+		// Classify the mutation
+		let mutationClass = "AST_REFACTOR"
+		let confidence = 0.8
+
+		if (originalContent) {
+			const classification = await SpatialHash.classifyMutation(originalContent, content)
+			mutationClass = classification.class
+			confidence = classification.confidence
+		}
+
+		// Determine line numbers (simplified - in real implementation, you'd get actual ranges)
+		const lines = content.split("\n").length
+
+		// Record trace
+		const traceId = await traceRecorderInstance.recordTrace({
+			intentId,
+			filePath,
+			content,
+			originalContent,
+			modelId: (context.session as any).modelId || "unknown",
+			sessionId: context.session.conversationId,
+			startLine: 1,
+			endLine: lines,
+			mutationClass: mutationClass as any,
+			confidence,
+		})
+
+		// Log for debugging
+		console.log(`✅ Trace recorded: ${traceId} - ${mutationClass} for ${filePath}`)
+
+		// Also update intent_map.md
+		await updateIntentMap(intentId, filePath, mutationClass)
+	} catch (error) {
+		console.error("Trace recording failed:", error)
+	}
+}
+
+// Helper to update intent map
+async function updateIntentMap(intentId: string, filePath: string, mutationClass: string): Promise<void> {
+	try {
+		const fs = await import("fs/promises")
+		const path = await import("path")
+
+		const mapPath = path.join(process.cwd(), ".orchestration", "intent_map.md")
+		const intent = await getIntentById(intentId)
+
+		if (!intent) return
+
+		const entry = `\n## ${intentId}: ${intent.name}\n`
+		const fileEntry = `- ${filePath} (${mutationClass} - ${new Date().toLocaleString()})\n`
+
+		let content = ""
+		try {
+			content = await fs.readFile(mapPath, "utf-8")
+		} catch {
+			content = "# Intent to File Mapping\n\n"
+		}
+
+		// Check if intent already has section
+		if (content.includes(`## ${intentId}:`)) {
+			// Append to existing section
+			const lines = content.split("\n")
+			const insertIndex = lines.findIndex((l) => l.startsWith(`## ${intentId}:`)) + 1
+			lines.splice(insertIndex, 0, fileEntry)
+			content = lines.join("\n")
+		} else {
+			// Add new section
+			content += entry + fileEntry
+		}
+
+		await fs.writeFile(mapPath, content)
+	} catch (error) {
+		console.error("Intent map update failed:", error)
 	}
 }

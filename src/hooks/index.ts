@@ -7,6 +7,7 @@ export interface HookContext {
 		intentId?: string
 		fileSnapshots: Map<string, string>
 		conversationId: string
+		modelId?: string
 	}
 	blocked: boolean
 	error?: {

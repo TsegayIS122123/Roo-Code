@@ -1,10 +1,11 @@
 // src/hooks/preHooks.ts
-import { HookContext, PreHook } from "./index"
+import { HookContext, PreHook, PostHook, ToolResult } from "./index"
 import { CommandClassifier } from "./security/commandClassifier"
 import { UIBlockingHandler } from "./security/uiBlocking"
 import { IntentIgnoreManager } from "./utils/intentIgnore"
 import { AutonomousRecovery } from "./recovery/errorHandler"
 import { validateIntentScope } from "./utils/intentLoader"
+import { OptimisticLockManager } from "./concurrency/optimisticLock"
 
 export const intentGatekeeper: PreHook = async (context: HookContext) => {
 	// Skip check for select_active_intent tool itself
@@ -140,40 +141,67 @@ export const scopeEnforcer: PreHook = async (context: HookContext) => {
 	return context
 }
 
-// New hook: Check for stale files (optimistic locking)
+// New hook: Check for stale files (optimistic locking) - ONLY ONCE
 export const staleFileDetector: PreHook = async (context: HookContext) => {
 	if (context.toolName !== "write_to_file") {
 		return context
 	}
 
 	const filePath = context.args.path
-	const snapshotHash = context.session.fileSnapshots?.get(filePath)
+	const agentId = context.session.conversationId
+	const intentId = context.session.intentId
 
-	if (!snapshotHash) {
-		return context // No snapshot, can't check staleness
+	if (!intentId) {
+		return context // Let intent gatekeeper handle this
 	}
 
-	// Calculate current file hash
-	const fs = await import("fs/promises")
-	const crypto = await import("crypto")
+	const lockManager = OptimisticLockManager.getInstance()
 
-	try {
-		const content = await fs.readFile(filePath, "utf-8")
-		const currentHash = crypto.createHash("sha256").update(content).digest("hex")
+	// Try to acquire lock
+	const lockAcquired = await lockManager.acquireLock(filePath, agentId)
 
-		if (currentHash !== snapshotHash) {
-			context.blocked = true
-			context.error = {
-				type: "STALE_FILE",
-				message: `File ${filePath} has been modified by another agent`,
-				suggestion: "Re-read the file and merge changes",
-			}
-			context.llmError = AutonomousRecovery.createErrorResponse(AutonomousRecovery.staleFile(filePath))
+	if (!lockAcquired) {
+		// Queue this write
+		const queueResult = await lockManager.queueWrite(filePath, agentId, context.args.content, intentId)
+
+		context.blocked = true
+		context.error = {
+			type: "FILE_LOCKED",
+			message: `File ${filePath} is currently being modified by another agent`,
+			suggestion: `Your write has been queued (position ${queueResult.position}). Please wait.`,
 		}
-	} catch {
-		// File doesn't exist, can't be stale
 		return context
 	}
 
+	// Validate write against read version
+	const validation = await lockManager.validateWrite(filePath, agentId, context.args.content)
+
+	if (!validation.valid) {
+		context.blocked = true
+		context.error = {
+			type: "STALE_FILE",
+			message: validation.error || "File has been modified by another agent",
+			suggestion: "Re-read the file and merge your changes",
+		}
+
+		// Release lock since we're not writing
+		await lockManager.releaseLock(filePath, agentId)
+	}
+
 	return context
+}
+
+// Note: The lockReleaser post-hook should be in postHooks.ts, not here
+
+// Release lock after successful write (add to post-hooks)
+export const lockReleaser: PostHook = async (context: HookContext, result: ToolResult) => {
+	if (context.toolName !== "write_to_file") {
+		return
+	}
+
+	const filePath = context.args.path
+	const agentId = context.session.conversationId
+
+	const lockManager = OptimisticLockManager.getInstance()
+	await lockManager.releaseLock(filePath, agentId)
 }

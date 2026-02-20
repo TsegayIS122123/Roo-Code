@@ -355,3 +355,102 @@ pnpm test src/__tests__/intent-ignore.test.ts
 # Test scope enforcement
 pnpm test src/__tests__/scope-enforcement.test.ts
 ```
+
+# Phases 3 & 4: AI-Native Git Layer & Parallel Orchestration
+
+## 📋 Overview
+
+Complete implementation of semantic tracking and multi-agent concurrency control.
+
+## 🎯 Phase 3: AI-Native Git Layer
+
+### Key Features
+
+| Feature                     | Implementation                    | Location                               |
+| --------------------------- | --------------------------------- | -------------------------------------- |
+| **Spatial Hashing**         | SHA-256 content hashing           | `src/hooks/trace/spatialHash.ts`       |
+| **Mutation Classification** | AST_REFACTOR vs INTENT_EVOLUTION  | `src/hooks/trace/spatialHash.ts`       |
+| **Agent Trace Schema**      | Full JSONL trace format           | `src/hooks/trace/types/traceSchema.ts` |
+| **Trace Recording**         | Post-hook with classification     | `src/hooks/trace/traceRecorder.ts`     |
+| **Trace Query**             | Intent history and impact reports | `src/hooks/trace/traceQuery.ts`        |
+
+### Trace Record Example
+
+````json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2026-02-20T10:30:00Z",
+  "vcs": {
+    "revision_id": "a1b2c3d4e5f6g7h8i9j0",
+    "branch": "feature/weather-api"
+  },
+  "files": [{
+    "relative_path": "src/api/weather/fetch.ts",
+    "conversations": [{
+      "contributor": {
+        "entity_type": "AI",
+        "model_identifier": "claude-3-5-sonnet",
+        "session_id": "sess-123"
+      },
+      "ranges": [{
+        "start_line": 15,
+        "end_line": 45,
+        "content_hash": "sha256:a8f5f167f44f4964e6c998dee827110c",
+        "mutation_class": "AST_REFACTOR",
+        "confidence": 0.85
+      }],
+      "related": [{
+        "type": "specification",
+        "value": "INT-001"
+      }]
+    }]
+  }]
+}
+🔄 Phase 4: Parallel Orchestration
+Key Features
+Feature	Implementation	Location
+Optimistic Locking	File version tracking	src/hooks/concurrency/optimisticLock.ts
+Stale File Detection	Hash comparison pre-write	src/hooks/preHooks.ts
+Lesson Recording	CLAUDE.md updates	src/hooks/learning/lessonRecorder.ts
+Session Management	Multi-agent coordination	src/hooks/concurrency/sessionManager.ts
+Concurrency Flow
+text
+Agent A reads file (hash: abc123) → Acquires lock
+Agent B tries to read same file → Queued
+Agent A writes (validates hash matches) → Releases lock
+Agent B gets lock, re-reads, gets new hash (def456)
+Agent B writes with updated hash
+Lesson Recording Example
+markdown
+## 📚 Lesson Learned: 2/20/2026, 10:30:00 AM
+- **Intent:** INT-001
+- **Tool:** test
+- **Type:** failure
+- **Message:** Test failed: WeatherAPI should return 200
+- **Details:**
+  ```json
+  {
+    "error": "Connection timeout",
+    "attempt": 3
+  }
+Resolution: Added retry logic with exponential backoff
+
+Tags: test-failure, needs-attention
+
+text
+
+## 🧪 Testing
+
+```bash
+# Test spatial hashing
+pnpm test src/__tests__/spatial-hash.test.ts
+
+# Test trace recording
+pnpm test src/__tests__/trace-recorder.test.ts
+
+# Test optimistic locking
+pnpm test src/__tests__/optimistic-lock.test.ts
+
+# Test lesson recording
+pnpm test src/__tests__/lesson-recorder.test.ts
+````

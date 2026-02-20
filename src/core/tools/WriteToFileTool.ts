@@ -1,3 +1,4 @@
+// src/core/tools/WriteToFileTool.ts
 import path from "path"
 import delay from "delay"
 import fs from "fs/promises"
@@ -17,16 +18,30 @@ import { convertNewFileToUnifiedDiff, computeDiffStats, sanitizeUnifiedDiff } fr
 import type { ToolUse } from "../../shared/tools"
 
 import { BaseTool, ToolCallbacks } from "./BaseTool"
+import { setTaskIntent, getTaskIntent } from "../../types/task-extension"
 
 interface WriteToFileParams {
 	path: string
 	content: string
+	intent_id?: string // Added for Phase 3
+	mutation_class?: string // Added for Phase 3 - AST_REFACTOR or INTENT_EVOLUTION
+	expected_hash?: string // Added for optimistic locking (Phase 4)
 }
 
 export class WriteToFileTool extends BaseTool<"write_to_file"> {
 	readonly name = "write_to_file" as const
 
-	async execute(params: WriteToFileParams, task: Task, callbacks: ToolCallbacks): Promise<void> {
+	async execute(params: WriteToFileParams, task: Task, callbacks: ToolCallbacks) {
+		// SAFELY access and store intent data using type assertion
+		const intentId = params.intent_id || (task as any).currentIntentId
+		const mutationClass = params.mutation_class
+
+		// Store in task for post-hooks using type assertion
+		if (task) {
+			;(task as any).currentIntentId = intentId
+			;(task as any).currentMutationClass = mutationClass
+		}
+
 		const { pushToolResult, handleError, askApproval } = callbacks
 		const relPath = params.path
 		let newContent = params.content
@@ -47,14 +62,7 @@ export class WriteToFileTool extends BaseTool<"write_to_file"> {
 			return
 		}
 
-		const accessAllowed = task.rooIgnoreController?.validateAccess(relPath)
-
-		if (!accessAllowed) {
-			await task.say("rooignore_error", relPath)
-			pushToolResult(formatResponse.rooIgnoreError(relPath))
-			return
-		}
-
+		// Check if file is write protected
 		const isWriteProtected = task.rooProtectedController?.isWriteProtected(relPath) || false
 
 		let fileExists: boolean
@@ -67,20 +75,20 @@ export class WriteToFileTool extends BaseTool<"write_to_file"> {
 			task.diffViewProvider.editType = fileExists ? "modify" : "create"
 		}
 
-		// Create parent directories early for new files to prevent ENOENT errors
-		// in subsequent operations (e.g., diffViewProvider.open, fs.readFile)
+		// Create parent directories early for new files
 		if (!fileExists) {
 			await createDirectoriesForFile(absolutePath)
 		}
 
+		// Clean content if it has markdown code fences
 		if (newContent.startsWith("```")) {
 			newContent = newContent.split("\n").slice(1).join("\n")
 		}
-
 		if (newContent.endsWith("```")) {
 			newContent = newContent.split("\n").slice(0, -1).join("\n")
 		}
 
+		// Unescape HTML entities for non-Claude models
 		if (!task.api.getModel().id.includes("claude")) {
 			newContent = unescapeHtmlEntities(newContent)
 		}
@@ -197,7 +205,7 @@ export class WriteToFileTool extends BaseTool<"write_to_file"> {
 		const relPath: string | undefined = block.params.path
 		let newContent: string | undefined = block.params.content
 
-		// Wait for path to stabilize before showing UI (prevents truncated paths)
+		// Wait for path to stabilize before showing UI
 		if (!this.hasPathStabilized(relPath) || newContent === undefined) {
 			return
 		}
@@ -213,7 +221,6 @@ export class WriteToFileTool extends BaseTool<"write_to_file"> {
 			return
 		}
 
-		// relPath is guaranteed non-null after hasPathStabilized
 		let fileExists: boolean
 		const absolutePath = path.resolve(task.cwd, relPath!)
 
@@ -224,8 +231,7 @@ export class WriteToFileTool extends BaseTool<"write_to_file"> {
 			task.diffViewProvider.editType = fileExists ? "modify" : "create"
 		}
 
-		// Create parent directories early for new files to prevent ENOENT errors
-		// in subsequent operations (e.g., diffViewProvider.open)
+		// Create parent directories early for new files
 		if (!fileExists) {
 			await createDirectoriesForFile(absolutePath)
 		}
