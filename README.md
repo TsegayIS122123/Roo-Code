@@ -35,7 +35,7 @@
 - [简体中文](locales/zh-CN/README.md)
 - [繁體中文](locales/zh-TW/README.md)
 - ...
-    </details>
+      </details>
 
 ---
 
@@ -92,7 +92,7 @@ Learn more: [Using Modes](https://docs.roocode.com/basic-usage/using-modes) • 
 1. **Clone** the repo:
 
 ```sh
-git clone https://github.com/RooCodeInc/Roo-Code.git
+git clone https://github.com/TsegayIS122123/Roo-Code.git
 ```
 
 2. **Install dependencies**:
@@ -155,6 +155,76 @@ We use [changesets](https://github.com/changesets/changesets) for versioning and
 
 ---
 
+# TRP1 Challenge: AI-Native IDE with Intent-Code Traceability
+
+## 📋 Project Overview
+
+This project transforms Roo Code into a governed AI-Native IDE with full intent-code traceability. All four phases are completely implemented.
+
+## Completed Features
+
+### Phase 0: Architecture Analysis
+
+- [x] Mapped tool execution flow (execute_command, write_to_file)
+- [x] Located prompt builder at src/core/prompts/system.ts
+- [x] Created ARCHITECTURE_NOTES.md with 4 professional diagrams
+- [x] Identified 5 strategic hook insertion points
+
+### Phase 1: Intent Handshake
+
+- [x] select_active_intent tool with XML context generation
+- [x] System prompt modified to mandate intent selection
+- [x] intentLoader parses .orchestration/active_intents.yaml
+- [x] intentGatekeeper blocks tools without selected intent
+- [x] Trace history integrated into context XML
+
+### Phase 2: Security Boundary
+
+- [x] Command classifier (20+ destructive patterns)
+- [x] UI-blocking modals with approve/reject/feedback
+- [x] .intentignore support with intent-specific rules
+- [x] Autonomous recovery with standardized errors
+- [x] Scope enforcement with owned_scope validation
+
+### Phase 3: AI-Native Git Layer
+
+- [x] Spatial hashing with SHA-256 content fingerprints
+- [x] Mutation classification (AST_REFACTOR vs INTENT_EVOLUTION)
+- [x] Full Agent Trace schema with JSONL persistence
+- [x] Trace recorder with post-hook integration
+- [x] Trace query engine for intent history
+
+### Phase 4: Parallel Orchestration
+
+- [x] Optimistic locking with file version tracking
+- [x] Stale file detection with hash comparison
+- [x] Lesson recorder for CLAUDE.md updates
+- [x] Session manager for multi-agent coordination
+- [x] Lock queuing for concurrent write operations
+
+## 📁 Key Files
+
+| Component          | Location                                   |
+| ------------------ | ------------------------------------------ |
+| Intent Tool        | `src/core/tools/SelectActiveIntentTool.ts` |
+| Hook Registry      | `src/hooks/index.ts`                       |
+| Pre-Hooks          | `src/hooks/preHooks.ts`                    |
+| Post-Hooks         | `src/hooks/postHooks.ts`                   |
+| Intent Loader      | `src/hooks/utils/intentLoader.ts`          |
+| Command Classifier | `src/hooks/security/commandClassifier.ts`  |
+| Spatial Hash       | `src/hooks/trace/spatialHash.ts`           |
+| Trace Recorder     | `src/hooks/trace/traceRecorder.ts`         |
+| Optimistic Lock    | `src/hooks/concurrency/optimisticLock.ts`  |
+| Lesson Recorder    | `src/hooks/learning/lessonRecorder.ts`     |
+
+## 🧪 Testing
+
+All components are implemented and type-checked. Run:
+
+```bash
+pnpm run check-types
+```
+
 ## Disclaimer
 
 **Please note** that Roo Code, Inc does **not** make any representations or warranties regarding any code, models, or other tools provided or made available in connection with Roo Code, any associated third-party tools, or any resulting outputs. You assume **all risks** associated with the use of any such tools or outputs; such tools are provided on an **"AS IS"** and **"AS AVAILABLE"** basis. Such risks may include, without limitation, intellectual property infringement, cyber vulnerabilities or attacks, bias, inaccuracies, errors, defects, viruses, downtime, property loss or damage, and/or personal injury. You are solely responsible for your use of any such tools or outputs (including, without limitation, the legality, appropriateness, and results thereof).
@@ -167,9 +237,11 @@ We love community contributions! Get started by reading our [CONTRIBUTING.md](CO
 
 ---
 
+## Author: Tsegay Assefa
+
 ## License
 
-[Apache 2.0 © 2025 Roo Code, Inc.](./LICENSE)
+[Apache 2.0 © 2026 Roo Code, TsegayIS122123](./LICENSE)
 
 ---
 
