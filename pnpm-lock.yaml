@@ -879,7 +879,7 @@ importers:
         specifier: ^25.0.0
         version: 25.2.1(typescript@5.8.3)
       ignore:
-        specifier: ^7.0.3
+        specifier: ^7.0.4
         version: 7.0.4
       isbinaryfile:
         specifier: ^5.0.2

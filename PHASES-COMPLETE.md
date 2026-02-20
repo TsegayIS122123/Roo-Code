@@ -130,10 +130,10 @@ text
     <id>INT-001</id>
     <name>Weather API</name>
     <status>ACTIVE</status>
-        <constraints>
-            <constraint>Use OpenWeather API</constraint>
-            <constraint>Rate limit: 60 requests/minute</constraint>
-        </constraints>
+    <constraints>
+    <constraint>Use OpenWeather API</constraint>
+    <constraint>Rate limit: 60 requests/minute</constraint>
+    </constraints>
 
         <owned_scope>
             <scope>src/api/weather/**</scope>
@@ -152,7 +152,9 @@ text
             <!-- Activity 2 (2/19/2026, 9:30:00 AM) -->
             <modified_file path="src/api/weather/types.ts" />
         </recent_activity>
+
     </intent_context>
+
 3.  Tool Response (Full Version)
     json
     {
@@ -187,13 +189,14 @@ bash
 pnpm test src/**tests**/phase1-handshake.test.ts
 pnpm test src/**tests**/phase1-integration.test.ts
 📁 File Structure Summary
+`
 src/
 ├── core/
 │ ├── prompts/
 │ │ ├── system.ts # Modified with intent requirement
 │ │ └── intentRequirement.ts # MANDATORY rules text
 │ └── tools/
-│ ├── SelectActiveIntentTool.ts # Intent selection tool (UPDATED)
+│ ├── SelectActiveIntentTool.ts # Intent selection tool
 │ └── toolRegistration.ts # Tool registry
 ├── hooks/
 │ ├── index.ts # Hook registry
@@ -201,7 +204,154 @@ src/
 │ ├── postHooks.ts # traceRecorder, lessonRecorder
 │ ├── integration.ts # Hook initialization
 │ └── utils/
-│ └── intentLoader.ts # YAML parser + trace loader (UPDATED)
+│ └── intentLoader.ts # YAML parser + trace loader
 └── **tests**/
-├── phase1-handshake.test.ts # Unit tests (NEW)
-└── phase1-integration.test.ts # Integration tests (NEW)
+├── phase1-handshake.test.ts # Unit tests
+└── phase1-integration.test.ts # Integration tests
+
+# Phase 2: The Hook Middleware & Security Boundary - Complete Implementation
+
+## 📋 Overview
+
+Phase 2 implements security boundaries around tool execution, ensuring that all operations are classified, approved, and scoped correctly.
+
+## 🎯 Key Features
+
+| Feature                    | Description                               | Implementation                            |
+| -------------------------- | ----------------------------------------- | ----------------------------------------- |
+| **Command Classification** | Classifies commands as safe/destructive   | `src/hooks/security/commandClassifier.ts` |
+| **UI-Blocking Modals**     | User approval for dangerous operations    | `src/hooks/security/uiBlocking.ts`        |
+| **.intentignore Support**  | Exclude files/commands per intent         | `src/hooks/utils/intentIgnore.ts`         |
+| **Autonomous Recovery**    | Self-correction for LLM errors            | `src/hooks/recovery/errorHandler.ts`      |
+| **Scope Enforcement**      | Validate file writes against intent scope | `src/hooks/preHooks.ts`                   |
+
+## 🔄 Security Flow
+
+┌─────────────────────────────────────────────────────────────────┐
+│ SECURITY ENFORCEMENT FLOW │
+├─────────────────────────────────────────────────────────────────┤
+│ │
+│ Tool Call (execute_command/write_to_file) │
+│ │ │
+│ ▼ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 1: Command Classification │ │
+│ │ └── Is it safe or destructive? │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 2: .intentignore Check │ │
+│ │ └── Is this file/command excluded for this intent? │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 3: Intent Gatekeeper │ │
+│ │ └── Is there an active intent selected? │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 4: Scope Enforcement (for file writes) │ │
+│ │ └── Is file within intent's owned_scope? │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 5: Stale File Detection │ │
+│ │ └── Has file changed since agent read it? │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 6: UI Approval (if needed) │ │
+│ │ └── Show modal for destructive/scope violations │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 7: Execute or Block │ │
+│ │ ├── If approved → Execute tool │ │
+│ │ └── If blocked → Return standardized error │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ STEP 8: Autonomous Recovery │ │
+│ │ └── LLM receives error + suggestions, self-corrects │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ │
+└─────────────────────────────────────────────────────────────────┘
+
+text
+
+## 📦 Data Formats
+
+### Destructive Command Detection
+
+```typescript
+// Classification result
+{
+    risk: 'destructive',
+    reason: 'Force push overwrites history',
+    pattern: 'git\\s+push\\s+--force',
+    suggestedAlternative: 'Use git push --force-with-lease'
+}
+UI Approval Modal
+text
+⚠️ **DESTRUCTIVE COMMAND DETECTED**
+Command: `git push --force`
+Risk: Force push overwrites history
+
+💡 Suggested alternative: Use git push --force-with-lease
+
+Do you want to allow this command?
+
+[✅ Approve Once] [🔄 Approve with Feedback] [❌ Reject] [⚡ Approve Always]
+Standardized Error Response
+json
+{
+  "status": "error",
+  "error": {
+    "type": "SCOPE_VIOLATION",
+    "message": "Intent INT-001 cannot modify src/other/file.ts",
+    "suggestion": "Request scope expansion or use allowed scopes: src/api/weather/**",
+    "recoverable": true
+  },
+  "_recovery": {
+    "instruction": "Please analyze this error and adjust your approach",
+    "retry": true,
+    "suggested_actions": [
+      "Request scope expansion from the user",
+      "Use a different intent with broader scope",
+      "Focus changes only on allowed directories"
+    ]
+  }
+}
+📁 File Structure
+`
+src/hooks/
+├── security/
+│   ├── commandClassifier.ts      # Command risk classification
+│   └── uiBlocking.ts              # User approval modals
+├── recovery/
+│   └── errorHandler.ts            # Autonomous recovery
+├── utils/
+│   └── intentIgnore.ts            # .intentignore parser
+├── types/
+│   └── commandTypes.ts            # Type definitions
+├── preHooks.ts                    # Enhanced with scope/stale checks
+├── postHooks.ts                    # Enhanced with recovery logging
+└── integration.ts                  # Phase 2 initialization
+🧪 Testing
+Test each security feature:
+# Test command classification
+pnpm test src/__tests__/command-classifier.test.ts
+
+# Test .intentignore parsing
+pnpm test src/__tests__/intent-ignore.test.ts
+
+# Test scope enforcement
+pnpm test src/__tests__/scope-enforcement.test.ts
+```

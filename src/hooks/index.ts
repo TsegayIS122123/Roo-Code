@@ -14,6 +14,10 @@ export interface HookContext {
 		message: string
 		suggestion?: string
 	}
+	// NEW: For LLM error responses
+	llmError?: string
+	// NEW: For user feedback from modals
+	userFeedback?: string
 }
 
 export interface ToolResult {
