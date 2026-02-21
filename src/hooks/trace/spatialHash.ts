@@ -2,6 +2,7 @@
 import { createHash } from "crypto"
 import * as fs from "fs/promises"
 import * as path from "path"
+import { ASTComparator } from "./astComparator"
 
 export class SpatialHash {
 	/**
@@ -119,6 +120,9 @@ export class SpatialHash {
 	/**
 	 * Classify mutation type using content heuristics (no AST required)
 	 */
+	// Add this import at the top
+
+	// Replace the classifyMutation method with:
 	static async classifyMutation(
 		originalContent: string,
 		newContent: string,
@@ -127,6 +131,29 @@ export class SpatialHash {
 		confidence: number
 		changes: string[]
 	}> {
+		// Try AST comparison first for accurate structural analysis
+		try {
+			const result = await ASTComparator.compare(originalContent, newContent)
+			return {
+				class: result.classification,
+				confidence: result.confidence,
+				changes: result.changes,
+			}
+		} catch (error) {
+			console.warn("AST comparison failed, using heuristic fallback:", error)
+			return this.fallbackClassification(originalContent, newContent)
+		}
+	}
+
+	// Keep your existing fallbackClassification method
+	static fallbackClassification(
+		originalContent: string,
+		newContent: string,
+	): {
+		class: "AST_REFACTOR" | "INTENT_EVOLUTION" | "BUG_FIX" | "PERF_IMPROVEMENT" | "DOCS_UPDATE"
+		confidence: number
+		changes: string[]
+	} {
 		const changes = []
 		let confidence = 0.7
 
@@ -151,7 +178,6 @@ export class SpatialHash {
 
 		const lineDiff = Math.abs(newLines - originalLines)
 		const sizeDiff = Math.abs(newSize - originalSize)
-		const sizeRatio = newSize / (originalSize || 1)
 
 		// Check for bug fixes (TODO/FIXME removal)
 		if (originalContent.includes("TODO") && !newContent.includes("TODO")) {
@@ -168,27 +194,13 @@ export class SpatialHash {
 			changes.push("Replaced forEach with for loop")
 			confidence = 0.85
 		}
-		if (originalContent.includes("while(") && newContent.includes("for(")) {
-			changes.push("Optimized loop structure")
-			confidence = 0.8
-		}
 
 		// Significant changes indicate evolution
-		if (lineDiff > 20 || sizeDiff > 500 || sizeRatio > 1.5 || sizeRatio < 0.5) {
+		if (lineDiff > 20 || sizeDiff > 500) {
 			changes.push(`Significant change: ${lineDiff} lines, ${sizeDiff} chars`)
 			return {
 				class: "INTENT_EVOLUTION",
 				confidence: 0.85,
-				changes,
-			}
-		}
-
-		// Moderate changes might be refactors
-		if (lineDiff > 5 || sizeDiff > 100) {
-			changes.push(`Moderate change: ${lineDiff} lines`)
-			return {
-				class: "AST_REFACTOR",
-				confidence: 0.75,
 				changes,
 			}
 		}

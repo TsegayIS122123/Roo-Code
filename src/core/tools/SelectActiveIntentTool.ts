@@ -1,6 +1,6 @@
 // src/core/tools/SelectActiveIntentTool.ts
 import { getEnhancedIntentContext, getRecentTracesForIntent } from "../../hooks/utils/intentLoader"
-
+import { getCuratedContext } from "../../hooks/utils/curatedContext"
 // Simple interface without complex inheritance
 export interface Tool {
 	name: string
@@ -25,14 +25,17 @@ class SelectActiveIntentToolImpl implements Tool {
 		required: ["intent_id"],
 	}
 
+	// Add this import at the top
+
 	async execute(params: any): Promise<any> {
 		try {
 			const intentId = params.intent_id
 
-			// Load enhanced intent context with trace history
-			const context = await getEnhancedIntentContext(intentId)
+			// Use CURATED context instead of enhanced context
+			// This solves the "curated not dumped" requirement
+			const context = await getCuratedContext(intentId, "select_active_intent")
 
-			if (!context || context.trim() === "" || !context.includes(`<id>${intentId}</id>`)) {
+			if (!context || context.trim() === "") {
 				return {
 					status: "error",
 					message: `Intent ${intentId} not found in active_intents.yaml`,
@@ -40,26 +43,13 @@ class SelectActiveIntentToolImpl implements Tool {
 				}
 			}
 
-			// Load recent traces for metadata
-			const recentTraces = await getRecentTracesForIntent(intentId, 3)
-
-			// Return success with full context
+			// Return success with curated context
 			return {
 				status: "success",
 				message: `✅ Intent ${intentId} selected successfully`,
-				context: context, // Full XML context with constraints, scope, and traces
-				trace_count: recentTraces.length,
+				context: context, // Now this is CURATED (limited constraints)
 				timestamp: new Date().toISOString(),
 				intent_id: intentId,
-
-				// Include summary for debugging
-				summary: {
-					id: intentId,
-					trace_count: recentTraces.length,
-					has_constraints: context.includes("<constraints>"),
-					has_scope: context.includes("<owned_scope>"),
-					has_traces: context.includes("<recent_activity>"),
-				},
 			}
 		} catch (error: any) {
 			return {

@@ -2,6 +2,8 @@ import * as vscode from "vscode"
 import * as dotenvx from "@dotenvx/dotenvx"
 import * as fs from "fs"
 import * as path from "path"
+import { initializeTraceRecorder } from "./hooks/postHooks"
+import { initializeHooks } from "./hooks/integration"
 
 // Load environment variables from .env file
 // The extension-level .env is optional (not shipped in production builds).
@@ -103,7 +105,9 @@ async function checkWorktreeAutoOpen(
 					await vscode.commands.executeCommand("roo-cline.plusButtonClicked")
 				} catch (error) {
 					outputChannel.appendLine(
-						`[Worktree] Error auto-opening sidebar: ${error instanceof Error ? error.message : String(error)}`,
+						`[Worktree] Error auto-opening sidebar: ${
+							error instanceof Error ? error.message : String(error)
+						}`,
 					)
 				}
 			}, 500)
@@ -118,6 +122,8 @@ async function checkWorktreeAutoOpen(
 // This method is called when your extension is activated.
 // Your extension is activated the very first time the command is executed.
 export async function activate(context: vscode.ExtensionContext) {
+	// Add this debug line at the VERY beginning
+	console.log("🔴🔴🔴 EXTENSION ACTIVATING - HOOKS WILL INITIALIZE 🔴🔴🔴")
 	extensionContext = context
 	outputChannel = vscode.window.createOutputChannel(Package.outputChannel)
 	context.subscriptions.push(outputChannel)
@@ -430,7 +436,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		watchPaths.forEach(({ path: watchPath, pattern }) => {
 			const relPattern = new vscode.RelativePattern(vscode.Uri.file(watchPath), pattern)
 			const watcher = vscode.workspace.createFileSystemWatcher(relPattern, false, false, false)
-
 			// Listen to all change types to ensure symlinked file updates trigger reloads.
 			watcher.onDidChange(debouncedReload)
 			watcher.onDidCreate(debouncedReload)
@@ -448,6 +453,48 @@ export async function activate(context: vscode.ExtensionContext) {
 			},
 		})
 	}
+
+	// ============================================================
+	// IMPORTANT: ADD HOOK INITIALIZATION HERE
+	// ============================================================
+	try {
+		console.log("🚀 Starting hook initialization...")
+
+		// Get workspace root
+		const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+		console.log(`📁 Workspace root: ${workspaceRoot || "none"}`)
+
+		if (workspaceRoot) {
+			console.log("📝 Initializing trace recorder...")
+			initializeTraceRecorder(workspaceRoot)
+
+			console.log("🔌 Initializing all hooks...")
+			await initializeHooks()
+
+			console.log("✅✅✅ HOOKS INITIALIZED SUCCESSFULLY ✅✅✅")
+
+			// Log registered hooks for debugging
+			console.log("📋 Hooks should now be active for write_to_file and execute_command")
+		} else {
+			console.log("⚠️ No workspace open - hooks will initialize when folder opens")
+
+			// Listen for workspace folder changes
+			context.subscriptions.push(
+				vscode.workspace.onDidChangeWorkspaceFolders(async (event) => {
+					if (event.added.length > 0) {
+						const newRoot = event.added[0].uri.fsPath
+						console.log(`📁 Workspace folder opened: ${newRoot}`)
+						initializeTraceRecorder(newRoot)
+						await initializeHooks()
+						console.log("✅ Hooks initialized after folder open")
+					}
+				}),
+			)
+		}
+	} catch (error) {
+		console.error("❌ Failed to initialize hooks:", error)
+	}
+	// ============================================================
 
 	// Initialize background model cache refresh
 	initializeModelCacheRefresh()
