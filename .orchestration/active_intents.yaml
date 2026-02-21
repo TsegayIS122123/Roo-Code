@@ -1,10 +1,21 @@
 active_intents:
   - id: "INT-001"
     name: "Build Weather API"
-    status: "IN_PROGRESS"
+    status: "ACTIVE"
     owned_scope:
-      - "src/api/weather/"
+      - "src/api/weather/**"
     constraints:
       - "Must use OpenWeather API"
+      - "Rate limit: 60 requests/minute"
     acceptance_criteria:
       - "Unit tests pass"
+  
+  - id: "INT-002"
+    name: "User Authentication"
+    status: "PLANNED"
+    owned_scope:
+      - "src/auth/**"
+    constraints:
+      - "JWT tokens only"
+    acceptance_criteria:
+      - "Security tests pass"

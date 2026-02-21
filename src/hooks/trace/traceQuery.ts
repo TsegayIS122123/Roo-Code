@@ -2,6 +2,7 @@
 import { TraceRecorder } from "./traceRecorder"
 import { TraceRecord } from "./types/traceSchema"
 import * as path from "path"
+import { SpatialHash } from "./spatialHash"
 
 export class TraceQuery {
 	private recorder: TraceRecorder
