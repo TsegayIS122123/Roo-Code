@@ -35,7 +35,7 @@
 - [简体中文](locales/zh-CN/README.md)
 - [繁體中文](locales/zh-TW/README.md)
 - ...
-      </details>
+  </details>
 
 ---
 
@@ -217,7 +217,24 @@ This project transforms Roo Code into a governed AI-Native IDE with full intent-
 | Optimistic Lock    | `src/hooks/concurrency/optimisticLock.ts`  |
 | Lesson Recorder    | `src/hooks/learning/lessonRecorder.ts`     |
 
+# Hook Architecture - Clean Middleware Pattern
+
+| Criteria                   | Implementation                                           | Evidence                       |
+| -------------------------- | -------------------------------------------------------- | ------------------------------ |
+| **Separation of Concerns** | All hooks in `src/hooks/`                                | Clean directory structure      |
+| **Interceptor Pattern**    | `MiddlewarePipeline.executeTool()` is single entry point | Uniform pipeline for all tools |
+| **Fail-Safe Behavior**     | Individual try/catch per hook + fallback registry        | Extension never crashes        |
+| **Composability**          | New hooks registered without modifying existing code     | Just call `registerPreTool()`  |
+
 ## 🧪 Testing
+
+```bash
+# Test middleware pattern
+pnpm test src/__tests__/middleware.test.ts
+
+# Verify fail-safe behavior
+pnpm test src/__tests__/fail-safe.test.ts
+```
 
 All components are implemented and type-checked. Run:
 
